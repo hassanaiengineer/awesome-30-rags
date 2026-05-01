@@ -1,0 +1,77 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Virtualenvs ----
+venv/
+.venv/
+env/
+
+# ---- Env files (never commit secrets) ----
+.env
+.env.*
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---- Common tutorial outputs / artifacts ----
+**/data/
+**/downloads/
+**/outputs/
+**/tmp/
+**/db_storage/
+**/pharma_db/
+**/.cache/
+**/.streamlit/
+**/*.log
+
+# ---- Vector DB / indexes ----
+**/*.faiss
+**/faiss_index/
+**/chroma/
+**/chromadb/
+**/qdrant_storage/
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+
+# ---- Jupyter ----
+.ipynb_checkpoints/
+
+# ---- Publish schedule (ignore future days until you release them) ----
+/02_multiquery_rag_api/
+/03_self_rag_api/
+/04_tool_augmented_rag_api/
+/05_corrective_rag_api/
+/06_hybrid_rag_api/
+/07_graph_rag_api/
+/08_agentic_rag_api/
+/09_rag_chain_pdf_chat/
+/10_hybrid_search_rag_raglite/
+/11_local_hybrid_search_rag_raglite/
+/12_local_rag_agent_agno_ollama/
+/13_llama_webpage_rag/
+/14_agentic_rag_gpt5_agno/
+/15_agentic_rag_embedding_gemma/
+/16_agentic_rag_with_reasoning/
+/17_agentic_rag_math_agent/
+/18_gemini_agentic_rag/
+/19_deepseek_local_rag_agent/
+/20_qwen_local_rag_agent/
+/21_rag_as_a_service_ragie/
+/22_rag_agent_cohere_qdrant/
+/23_rag_database_routing/
+/24_knowledge_graph_rag_citations/
+/25_contextualai_rag_agent/
+/26_ai_blog_search_langgraph/
+/27_corrective_rag_langchain/
+/28_autonomous_rag_agent/
+/29_rag_failure_diagnostics_clinic/
+/30_vision_rag_multimodal/
