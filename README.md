@@ -9,6 +9,8 @@ This repository is a **hands-on 30-day RAG series**: small projects (FastAPI + S
 
 Motivation and goals: see `MOTIVATION.md`.
 
+![30 Days of RAG Series](./30_rags_series.png)
+
 ## Tech Stack (Across the Series)
 
 Not every tutorial uses every tool, but you’ll see many of these across days:
