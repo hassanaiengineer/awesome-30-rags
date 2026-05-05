@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-sentence-transformers
-faiss-cpu
-pydantic
-numpy
-networkx
