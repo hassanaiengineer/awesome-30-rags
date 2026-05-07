@@ -48,14 +48,7 @@ Thumbs.db
 
 # ---- Publish schedule (ignore future days until you release them) ----
 # Remove a folder from this list on the day you release it.
-01_simple_rag_api/
-02_multiquery_rag_api/
-03_self_rag_api/
-04_tool_augmented_rag_api/
-05_corrective_rag_api/
-06_hybrid_rag_api/
-07_graph_rag_api/
-08_agentic_rag_api/
+
 09_rag_chain_pdf_chat/
 10_hybrid_search_rag_raglite/
 11_local_hybrid_search_rag_raglite/
