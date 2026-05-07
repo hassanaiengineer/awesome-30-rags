@@ -24,9 +24,12 @@ Not every tutorial uses every tool, but you’ll see many of these across days:
 - Neo4j: https://neo4j.com/
 - Ollama (local LLMs): https://ollama.com/
 
-## How to Run a Tutorial
+## Quick Start / How to Run
 
-Each numbered folder is intended to be **runnable on its own**:
+Each numbered folder is an independent, self-contained project. 
+
+### For API Tutorials (Days 01–08)
+These are built with FastAPI. To run them:
 
 ```bash
 cd 01_simple_rag_api
@@ -35,13 +38,8 @@ python -m app.ingest
 uvicorn api.main:app --reload
 ```
 
-Some tutorials need API keys or services (Qdrant, Neo4j, etc.). Use `.env.example` as a starting point.
-
-Note: if your system uses `python3`, replace `python` with `python3` in commands.
-
-## Quick Start
-
-Most tutorials follow this pattern:
+### For UI Tutorials (Days 09–30)
+These are built with Streamlit. To run them:
 
 ```bash
 cd 10_hybrid_search_rag_raglite
@@ -49,14 +47,7 @@ pip install -r requirements.txt
 streamlit run main.py
 ```
 
-API tutorials (01–08) use FastAPI:
-
-```bash
-cd 01_simple_rag_api
-pip install -r requirements.txt
-python -m app.ingest
-uvicorn api.main:app --reload
-```
+> **Note:** Some tutorials require API keys (OpenAI, Gemini, etc.) or external services (Qdrant, Neo4j). Use the `.env.example` file in the root directory as a starting point. If your system defaults to Python 2, make sure to use `python3` and `pip3`.
 
 ## Tutorials
 
