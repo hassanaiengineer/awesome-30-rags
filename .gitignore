@@ -49,14 +49,7 @@ Thumbs.db
 # ---- Publish schedule (ignore future days until you release them) ----
 # Remove a folder from this list on the day you release it.
 
-09_rag_chain_pdf_chat/
-10_hybrid_search_rag_raglite/
-11_local_hybrid_search_rag_raglite/
-12_local_rag_agent_agno_ollama/
-13_llama_webpage_rag/
-14_agentic_rag_gpt5_agno/
-15_agentic_rag_embedding_gemma/
-16_agentic_rag_with_reasoning/
+
 17_agentic_rag_math_agent/
 18_gemini_agentic_rag/
 19_deepseek_local_rag_agent/
