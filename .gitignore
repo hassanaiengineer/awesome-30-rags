@@ -50,10 +50,7 @@ Thumbs.db
 # Remove a folder from this list on the day you release it.
 
 
-17_agentic_rag_math_agent/
-18_gemini_agentic_rag/
-19_deepseek_local_rag_agent/
-20_qwen_local_rag_agent/
+
 21_rag_as_a_service_ragie/
 22_rag_agent_cohere_qdrant/
 23_rag_database_routing/
