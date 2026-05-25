@@ -48,13 +48,6 @@ Thumbs.db
 
 # ---- Publish schedule (ignore future days until you release them) ----
 # Remove a folder from this list on the day you release it.
-
-
-
-21_rag_as_a_service_ragie/
-22_rag_agent_cohere_qdrant/
-23_rag_database_routing/
-24_knowledge_graph_rag_citations/
 25_contextualai_rag_agent/
 26_ai_blog_search_langgraph/
 27_corrective_rag_langchain/
