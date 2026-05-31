@@ -306,3 +306,80 @@ def grade_documents(state):
         Rules:
         - Check for related keywords or semantic meaning
         - Use lenient grading to only filter clear mismatches
+        - Return exactly like this example: {{"score": "yes"}} or {{"score": "no"}}""",
+        input_variables=["context", "question"])
+
+    chain = (
+        prompt 
+        | llm 
+        | StrOutputParser()
+    )
+
+    filtered_docs = []
+    search = "No"
+    
+    for d in documents:
+        try:
+            response = chain.invoke({"question": question, "context": d.page_content})
+            import re
+            json_match = re.search(r'\{.*\}', response)
+            if json_match:
+                response = json_match.group()
+            
+            import json
+            score = json.loads(response)
+            
+            if score.get("score") == "yes":
+                print("~-grade: document relevant-~")
+                filtered_docs.append(d)
+            else:
+                print("~-grade: document not relevant-~")
+                search = "Yes"
+                
+        except Exception as e:
+            print(f"Error grading document: {str(e)}")
+            # On error, keep the document to be safe
+            filtered_docs.append(d)
+            continue
+
+    return {"keys": {"documents": filtered_docs, "question": question, "run_web_search": search}}
+
+
+def transform_query(state):
+    """Transform the query to produce a better question."""
+    print("~-transform query-~")
+    state_dict = state["keys"]
+    question = state_dict["question"]
+    documents = state_dict["documents"]
+
+    # Create a prompt template
+    prompt = PromptTemplate(
+        template="""Generate a search-optimized version of this question by 
+        analyzing its core semantic meaning and intent.
+        \n ------- \n
+        {question}
+        \n ------- \n
+        Return only the improved question with no additional text:""",
+        input_variables=["question"],
+    )
+
+    # Use Claude instead of Gemini
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-5",
+        anthropic_api_key=st.session_state.anthropic_api_key,
+        temperature=0,
+        max_tokens=1000
+    )
+
+    # Prompt
+    chain = prompt | llm | StrOutputParser()
+    better_question = chain.invoke({"question": question})
+
+    return {
+        "keys": {"documents": documents, "question": better_question}
+    }
+
+
+def decide_to_generate(state):
+    print("~-decide to generate-~")
+    state_dict = state["keys"]
