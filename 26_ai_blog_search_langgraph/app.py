@@ -250,3 +250,66 @@ def get_graph(retriever_tool):
     workflow = StateGraph(AgentState)
 
     # Use partial to pass tools to the agent function
+    workflow.add_node("agent", partial(agent, tools=tools))
+    
+    # Rest of the graph setup remains the same
+    retrieve = ToolNode(tools)
+    workflow.add_node("retrieve", retrieve)
+    workflow.add_node("rewrite", rewrite)  # Re-writing the question
+    workflow.add_node(
+        "generate", generate
+    )  # Generating a response after we know the documents are relevant
+    # Call agent node to decide to retrieve or not
+    workflow.add_edge(START, "agent")
+
+    # Decide whether to retrieve
+    workflow.add_conditional_edges(
+        "agent",
+        # Assess agent decision
+        tools_condition,
+        {
+            # Translate the condition outputs to nodes in our graph
+            "tools": "retrieve",
+            END: END,
+        },
+    )
+
+    # Edges taken after the `action` node is called.
+    workflow.add_conditional_edges(
+        "retrieve",
+        # Assess agent decision
+        grade_documents,
+    )
+    workflow.add_edge("generate", END)
+    workflow.add_edge("rewrite", "agent")
+
+    # Compile
+    graph = workflow.compile()
+
+    return graph
+
+def generate_message(graph, inputs):
+    generated_message = ""
+
+    for output in graph.stream(inputs):
+        for key, value in output.items():
+            if key == "generate" and isinstance(value, dict):
+                generated_message = value.get("messages", [""])[0]
+    
+    return generated_message
+
+def add_documents_to_qdrant(url, db):
+    try:
+        docs = WebBaseLoader(url).load()
+        text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+            chunk_size=100, chunk_overlap=50
+        )
+        doc_chunks = text_splitter.split_documents(docs)
+        uuids = [str(uuid4()) for _ in range(len(doc_chunks))]
+        db.add_documents(documents=doc_chunks, ids=uuids)
+        return True
+    except Exception as e:
+        st.error(f"Error adding documents: {str(e)}")
+        return False
+
+def main():
