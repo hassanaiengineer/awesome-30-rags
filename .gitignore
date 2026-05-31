@@ -48,9 +48,5 @@ Thumbs.db
 
 # ---- Publish schedule (ignore future days until you release them) ----
 # Remove a folder from this list on the day you release it.
-25_contextualai_rag_agent/
-26_ai_blog_search_langgraph/
-27_corrective_rag_langchain/
-28_autonomous_rag_agent/
-29_rag_failure_diagnostics_clinic/
-30_vision_rag_multimodal/
+
+rag_series_backup/
