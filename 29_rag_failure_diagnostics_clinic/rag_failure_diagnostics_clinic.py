@@ -248,3 +248,56 @@ def run_once(client: OpenAI, model_name: str, system_prompt: str) -> None:
     print("Running diagnosis ...\n")
 
     try:
+        completion = client.chat.completions.create(
+            model=model_name,
+            temperature=0.2,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": (
+                        "Here is the bug description. "
+                        "Follow the pattern rules described above.\n\n"
+                        + bug
+                    ),
+                },
+            ],
+        )
+    except Exception as exc:
+        print(f"Error while calling the model: {exc}")
+        return
+
+    reply = completion.choices[0].message.content or ""
+    print(reply)
+
+    report = {
+        "bug_description": bug,
+        "model": model_name,
+        "assistant_markdown": reply,
+    }
+
+    try:
+        with open("rag_failure_report.json", "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2)
+        print("\nSaved report to rag_failure_report.json\n")
+    except OSError as exc:
+        print(f"\nCould not write report file: {exc}\n")
+
+
+def main():
+    print("RAG Failure Diagnostics Clinic — Built by Hassan Khan")
+    print("LinkedIn: https://www.linkedin.com/in/hassan-khan-4961b722b/\n")
+    system_prompt = build_system_prompt()
+    client, model_name = make_client_and_model()
+
+    while True:
+        run_once(client, model_name, system_prompt)
+        again = input("Debug another bug? (y/n): ").strip().lower()
+        if again != "y":
+            print("Session finished. Goodbye.")
+            break
+        print()
+
+
+if __name__ == "__main__":
+    main()
