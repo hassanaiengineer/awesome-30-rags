@@ -229,3 +229,80 @@ if docs:
     # Add documents to the vectorstore
     vectorstore.add_documents(all_splits)
     retriever = vectorstore.as_retriever()
+
+
+class GraphState(TypedDict):
+    keys: Dict[str, any]
+
+
+def retrieve(state):
+    print("~-retrieve-~")
+    state_dict = state["keys"]
+    question = state_dict["question"]
+    
+    if retriever is None:
+        return {"keys": {"documents": [], "question": question}}
+        
+    documents = retriever.get_relevant_documents(question)
+    return {"keys": {"documents": documents, "question": question}}
+
+
+def generate(state):
+    """Generate answer using Claude 3 model"""
+    print("~-generate-~")
+    state_dict = state["keys"]
+    question, documents = state_dict["question"], state_dict["documents"]
+    try:
+        prompt = PromptTemplate(template="""Based on the following context, please answer the question.
+            Context: {context}
+            Question: {question}
+            Answer:""", input_variables=["context", "question"])
+        llm = ChatAnthropic(model="claude-sonnet-4-5", api_key=st.session_state.anthropic_api_key,
+                           temperature=0, max_tokens=1000)
+        context = "\n\n".join(doc.page_content for doc in documents)
+
+        # Create and run chain
+        rag_chain = (
+            {"context": lambda x: context, "question": lambda x: question} 
+            | prompt 
+            | llm 
+            | StrOutputParser()
+        )
+
+        generation = rag_chain.invoke({})
+
+        return {
+            "keys": {
+                "documents": documents,
+                "question": question,
+                "generation": generation
+            }
+        }
+
+    except Exception as e:
+        error_msg = f"Error in generate function: {str(e)}"
+        print(error_msg)
+        st.error(error_msg)
+        return {"keys": {"documents": documents, "question": question, 
+                "generation": "Sorry, I encountered an error while generating the response."}}
+
+def grade_documents(state):
+    """Determines whether the retrieved documents are relevant."""
+    print("~-check relevance-~")
+    state_dict = state["keys"]
+    question = state_dict["question"]
+    documents = state_dict["documents"]
+
+    llm = ChatAnthropic(model="claude-sonnet-4-5", api_key=st.session_state.anthropic_api_key,
+                       temperature=0, max_tokens=1000)
+
+    prompt = PromptTemplate(template="""You are grading the relevance of a retrieved document to a user question.
+        Return ONLY a JSON object with a "score" field that is either "yes" or "no".
+        Do not include any other text or explanation.
+        
+        Document: {context}
+        Question: {question}
+        
+        Rules:
+        - Check for related keywords or semantic meaning
+        - Use lenient grading to only filter clear mismatches
