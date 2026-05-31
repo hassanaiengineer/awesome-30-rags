@@ -378,3 +378,83 @@ if uploaded_files and co:
             if st.session_state.doc_embeddings is None or st.session_state.doc_embeddings.size == 0:
                 st.session_state.doc_embeddings = new_embeddings_array
             else:
+                st.session_state.doc_embeddings = np.vstack((st.session_state.doc_embeddings, new_embeddings_array))
+            st.success(f"Successfully processed and added {len(newly_uploaded_paths)} new images.")
+        else:
+             st.warning("Failed to generate embeddings for newly uploaded images.")
+    elif uploaded_files: # If files were selected but none were new
+         st.info("Selected images already seem to be processed.")
+
+# --- Vision RAG Section (Main UI) ---
+st.markdown("---")
+st.subheader("❓ Ask a Question")
+
+if not st.session_state.image_paths:
+    st.warning("Please load sample images or upload your own images first.")
+else:
+    st.info(f"Ready to answer questions about {len(st.session_state.image_paths)} images.")
+
+    # Display thumbnails of all loaded images (optional)
+    with st.expander("View Loaded Images", expanded=False):
+        if st.session_state.image_paths:
+            num_images_to_show = len(st.session_state.image_paths)
+            cols = st.columns(5) # Show 5 thumbnails per row
+            for i in range(num_images_to_show):
+                with cols[i % 5]:
+                    # Add try-except for missing files during display
+                    try:
+                         # Display PDF pages differently? For now, just show the image
+                         st.image(st.session_state.image_paths[i], width=100, caption=os.path.basename(st.session_state.image_paths[i]))
+                    except FileNotFoundError:
+                        st.error(f"Missing: {os.path.basename(st.session_state.image_paths[i])}")
+        else:
+            st.write("No images loaded yet.")
+
+question = st.text_input("Ask a question about the loaded images:", 
+                          key="main_question_input",
+                          placeholder="E.g., What is Nike's net profit?",
+                          disabled=not st.session_state.image_paths)
+
+run_button = st.button("Run Vision RAG", key="main_run_button", 
+                      disabled=not (cohere_api_key and google_api_key and question and st.session_state.image_paths and st.session_state.doc_embeddings is not None and st.session_state.doc_embeddings.size > 0))
+
+# Output Area
+st.markdown("### Results")
+retrieved_image_placeholder = st.empty()
+answer_placeholder = st.empty()
+
+# Run search and answer logic
+if run_button:
+    if co and genai_client and st.session_state.doc_embeddings is not None and len(st.session_state.doc_embeddings) > 0:
+         with st.spinner("Finding relevant image..."):
+            # Ensure embeddings and paths match before search
+             if len(st.session_state.image_paths) != st.session_state.doc_embeddings.shape[0]:
+                 st.error("Error: Mismatch between number of images and embeddings. Cannot proceed.")
+             else:
+                top_image_path = search(question, co, st.session_state.doc_embeddings, st.session_state.image_paths)
+
+                if top_image_path:
+                    caption = f"Retrieved content for: '{question}' (Source: {os.path.basename(top_image_path)})"
+                    # Add source PDF name if it's a page image
+                    if top_image_path.startswith("pdf_pages/"):
+                         parts = top_image_path.split(os.sep)
+                         if len(parts) >= 3:
+                             pdf_name = parts[1]
+                             page_name = parts[-1]
+                             caption = f"Retrieved content for: '{question}' (Source: {pdf_name}.pdf, {page_name.replace('.png','')})"
+
+                    retrieved_image_placeholder.image(top_image_path, caption=caption, use_container_width=True)
+
+                    with st.spinner("Generating answer..."):
+                        final_answer = answer(question, top_image_path, genai_client)
+                        answer_placeholder.markdown(f"**Answer:**\n{final_answer}")
+                else:
+                    retrieved_image_placeholder.warning("Could not find a relevant image for your question.")
+                    answer_placeholder.text("") # Clear answer placeholder
+    else:
+        # This case should ideally be prevented by the disabled state of the button
+        st.error("Cannot run RAG. Check API clients and ensure images are loaded with embeddings.")
+
+# Footer
+st.markdown("---")
+st.caption("Vision RAG with Cohere Embed-4 • Hassan Khan RAG Series")
