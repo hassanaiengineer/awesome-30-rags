@@ -123,3 +123,28 @@ def main():
     if not api_key:
         st.sidebar.warning("Enter your OpenAI API Key to proceed.")
         st.stop()
+
+    assistant = setup_assistant(api_key)
+    
+    uploaded_file = st.sidebar.file_uploader("📄 Upload PDF", type=["pdf"])
+    
+    if uploaded_file and st.sidebar.button("🛠️ Add to Knowledge Base"):
+        add_document(assistant, BytesIO(uploaded_file.read()))
+
+    question = st.text_input("💬 Ask Your Question:")
+    
+    # When the user submits a question, query the assistant for an answer
+    if st.button("🔍 Get Answer"):
+        # Ensure the question is not empty
+        if question.strip():
+            with st.spinner("🤔 Thinking..."):
+                # Query the assistant and display the response
+                answer = query_assistant(assistant, question)
+                st.write("📝 **Response:**", answer.content)
+        else:
+            # Show an error if the question input is empty
+            st.error("Please enter a question.")
+
+# Entry point of the application
+if __name__ == "__main__":
+    main()
