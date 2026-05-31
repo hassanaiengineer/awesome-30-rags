@@ -273,3 +273,63 @@ with st.expander("3) Create or Select Agent", expanded=True):
         st.success(f"Using Agent: {st.session_state.agent_id}")
 
 with st.expander("4) Agent Settings (Optional)"):
+    if st.session_state.agent_id:
+        system_prompt_val = st.text_area("System Prompt", value="", placeholder="Paste a new system prompt to update your agent")
+        if st.button("Update System Prompt") and system_prompt_val.strip():
+            ok = update_agent_prompt(client, st.session_state.agent_id, system_prompt_val.strip())
+            if ok:
+                st.success("System prompt updated.")
+
+st.divider()
+
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"]) 
+
+query = st.chat_input("Ask a question about your documents")
+if query:
+    st.session_state.last_user_query = query
+    st.session_state.chat_history.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+
+    if st.session_state.agent_id:
+        with st.chat_message("assistant"):
+            answer, raw = query_agent(client, st.session_state.agent_id, query)
+            st.session_state.last_raw_response = raw
+            processed = post_process_answer(answer)
+            st.markdown(processed)
+            st.session_state.chat_history.append({"role": "assistant", "content": processed})
+    else:
+        st.error("Please create or select an agent first.")
+
+with st.expander("Debug & Evaluation", expanded=False):
+    st.caption("Tools to inspect retrievals and evaluate answers")
+    if st.session_state.agent_id:
+        if st.checkbox("Show Retrieval Info", value=False):
+            show_retrieval_info(client, st.session_state.last_raw_response, st.session_state.agent_id)
+        st.markdown("")
+        unit_test = st.text_area("LMUnit rubric / unit test", value="Does the response avoid unnecessary information?", height=80)
+        if st.button("Evaluate Last Answer with LMUnit"):
+            if st.session_state.last_user_query and st.session_state.chat_history:
+                last_assistant_msgs = [m for m in st.session_state.chat_history if m["role"] == "assistant"]
+                if last_assistant_msgs:
+                    evaluate_with_lmunit(client, st.session_state.last_user_query, last_assistant_msgs[-1]["content"], unit_test)
+                else:
+                    st.info("No assistant response to evaluate yet.")
+            else:
+                st.info("Ask a question first to run an evaluation.")
+
+with st.sidebar:
+    st.divider()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Clear Chat"):
+            st.session_state.chat_history = []
+            st.session_state.last_raw_response = None
+            st.session_state.last_user_query = ""
+            st.rerun()
+    with col2:
+        if st.button("Reset App"):
+            st.session_state.clear()
+            st.rerun()
