@@ -218,3 +218,58 @@ def post_process_answer(text: str) -> str:
     return text
 
 
+init_session_state()
+
+st.title("Contextual AI RAG Agent")
+
+if not sidebar_api_form():
+    st.info("Please enter your Contextual AI API key in the sidebar to continue.")
+    st.stop()
+
+client = ensure_client()
+
+with st.expander("1) Create or Select Datastore", expanded=True):
+    if not st.session_state.datastore_id:
+        default_name = "contextualai_rag_datastore"
+        ds_name = st.text_input("Datastore Name", value=default_name)
+        if st.button("Create Datastore"):
+            ds_id = create_datastore(client, ds_name)
+            if ds_id:
+                st.session_state.datastore_id = ds_id
+                st.success(f"Created datastore: {ds_id}")
+    else:
+        st.success(f"Using Datastore: {st.session_state.datastore_id}")
+
+with st.expander("2) Upload Documents", expanded=True):
+    uploaded_files = st.file_uploader("Upload PDFs or text files", type=["pdf", "txt", "md"], accept_multiple_files=True)
+    metadata_json = st.text_area("Custom Metadata (JSON)", value="", placeholder='{"custom_metadata": {"field1": "value1"}}')
+    if uploaded_files and st.session_state.datastore_id:
+        contents = [f.getvalue() for f in uploaded_files]
+        names = [f.name for f in uploaded_files]
+        if st.button("Ingest Documents"):
+            parsed_metadata = None
+            if metadata_json.strip():
+                try:
+                    parsed_metadata = json.loads(metadata_json)
+                except Exception as e:
+                    st.error(f"Invalid metadata JSON: {e}")
+                    parsed_metadata = None
+            ids = upload_documents(client, st.session_state.datastore_id, contents, names, parsed_metadata)
+            if ids:
+                st.success(f"Uploaded {len(ids)} document(s)")
+                wait_until_documents_ready(st.session_state.contextual_api_key, st.session_state.datastore_id, st.session_state.base_url)
+                st.info("Documents are ready.")
+
+with st.expander("3) Create or Select Agent", expanded=True):
+    if not st.session_state.agent_id and st.session_state.datastore_id:
+        agent_name = st.text_input("Agent Name", value="ContextualAI RAG Agent")
+        agent_desc = st.text_area("Agent Description", value="RAG agent over uploaded documents")
+        if st.button("Create Agent"):
+            a_id = create_agent(client, agent_name, agent_desc, st.session_state.datastore_id)
+            if a_id:
+                st.session_state.agent_id = a_id
+                st.success(f"Created agent: {a_id}")
+    elif st.session_state.agent_id:
+        st.success(f"Using Agent: {st.session_state.agent_id}")
+
+with st.expander("4) Agent Settings (Optional)"):
