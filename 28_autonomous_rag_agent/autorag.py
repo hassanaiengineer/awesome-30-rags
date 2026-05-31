@@ -23,3 +23,28 @@ DB_URL = "postgresql+psycopg://ai:ai@localhost:5532/ai"
 def setup_assistant(api_key: str) -> Agent:
     """Initializes and returns an AI Assistant agent with caching for efficiency.
 
+    This function sets up an AI Assistant agent using the OpenAI GPT-4o-mini model 
+    and configures it with a knowledge base, storage, and web search tools. The 
+    assistant is designed to first search its knowledge base before querying the 
+    internet, providing clear and concise answers.
+
+    Args:
+        api_key (str): The API key required to access the OpenAI services.
+
+    Returns:
+        Agent: An initialized Assistant agent configured with a language model, 
+        knowledge base, storage, and additional tools for enhanced functionality."""
+    llm = OpenAIChat(id="gpt-4o-mini", api_key=api_key)
+    # Set up the Assistant with storage, knowledge base, and tools
+    return Agent(
+        id="auto_rag_agent",  # Name of the Assistant
+        model=llm,  # Language model to be used
+        storage=PostgresAgentStorage(table_name="auto_rag_storage", db_url=DB_URL),  
+        knowledge_base=PDFUrlKnowledgeBase(
+            vector_db=PgVector(
+                db_url=DB_URL,  
+                collection="auto_rag_docs",  
+                embedder=OpenAIEmbedder(id="text-embedding-ada-002", dimensions=1536, api_key=api_key),  
+            ),
+            num_documents=3,  
+        ),
