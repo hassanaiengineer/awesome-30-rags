@@ -152,3 +152,80 @@ def web_search(state):
         
         progress_placeholder.success(f"Successfully added {len(web_results)} search results")
         
+    except Exception as error:
+        error_msg = f"Web search error: {str(error)}"
+        print(error_msg)
+        progress_placeholder.error(error_msg)
+    finally:
+        progress_placeholder.empty()
+    return {"keys": {"documents": documents, "question": question}}
+
+
+def load_documents(file_or_url: str, is_url: bool = True) -> list:
+    try:
+        if is_url:
+            loader = WebBaseLoader(file_or_url)
+            loader.requests_per_second = 1
+        else:
+            file_extension = os.path.splitext(file_or_url)[1].lower()
+            if file_extension == '.pdf':
+                loader = PyPDFLoader(file_or_url)
+            elif file_extension in ['.txt', '.md']:
+                loader = TextLoader(file_or_url)
+            else:
+                raise ValueError(f"Unsupported file type: {file_extension}")
+        
+        return loader.load()
+    except Exception as e:
+        st.error(f"Error loading document: {str(e)}")
+        return []
+
+st.subheader("Document Input")
+input_option = st.radio("Choose input method:", ["URL", "File Upload"])
+
+docs = None  
+
+if input_option == "URL":
+    url = st.text_input("Enter document URL:", value=st.session_state.doc_url)
+    if url:
+        docs = load_documents(url, is_url=True)
+else:
+    uploaded_file = st.file_uploader("Upload a document", type=['pdf', 'txt', 'md'])
+    if uploaded_file:
+        # Create a temporary file to store the upload
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            docs = load_documents(tmp_file.name, is_url=False)
+        # Clean up the temporary file
+        os.unlink(tmp_file.name)
+
+if docs:
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        chunk_size=500, chunk_overlap=100
+    )
+    all_splits = text_splitter.split_documents(docs)
+
+    client = QdrantClient(url=st.session_state.qdrant_url, api_key=st.session_state.qdrant_api_key)
+    collection_name = "rag-qdrant"
+
+    try:
+        # Try to delete the collection if it exists
+        client.delete_collection(collection_name)
+    except Exception:
+        pass  
+
+    client.create_collection(
+        collection_name=collection_name,
+        vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+    )
+
+    # Create vectorstore
+    vectorstore = Qdrant(
+        client=client,
+        collection_name=collection_name,
+        embeddings=embeddings,
+    )
+
+    # Add documents to the vectorstore
+    vectorstore.add_documents(all_splits)
+    retriever = vectorstore.as_retriever()
