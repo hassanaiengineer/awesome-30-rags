@@ -226,3 +226,79 @@ def download_and_embed_sample_images(_cohere_client) -> tuple[list[str], np.ndar
     """
     Sample-image download disabled in this repo.
 
+    This keeps the tutorial clean, avoids hard-coded external URLs, and ensures
+    all retrieval content comes from user uploads.
+    """
+    return [], None
+
+# Search function
+def search(question: str, co_client: cohere.Client, embeddings: np.ndarray, image_paths: list[str], max_img_size: int = 800) -> str | None:
+    """Finds the most relevant image path for a given question."""
+    if not co_client or embeddings is None or embeddings.size == 0 or not image_paths:
+        st.warning("Search prerequisites not met (client, embeddings, or paths missing/empty).")
+        return None
+    if embeddings.shape[0] != len(image_paths):
+         st.error(f"Mismatch between embeddings count ({embeddings.shape[0]}) and image paths count ({len(image_paths)}). Cannot perform search.")
+         return None
+
+    try:
+        # Compute the embedding for the query
+        api_response = co_client.embed(
+            model="embed-v4.0",
+            input_type="search_query",
+            embedding_types=["float"],
+            texts=[question],
+        )
+
+        if not api_response.embeddings or not api_response.embeddings.float:
+            st.error("Failed to get query embedding.")
+            return None
+
+        query_emb = np.asarray(api_response.embeddings.float[0])
+
+        # Ensure query embedding has the correct shape for dot product
+        if query_emb.shape[0] != embeddings.shape[1]:
+            st.error(f"Query embedding dimension ({query_emb.shape[0]}) does not match document embedding dimension ({embeddings.shape[1]}).")
+            return None
+
+        # Compute cosine similarities
+        cos_sim_scores = np.dot(query_emb, embeddings.T)
+
+        # Get the most relevant image
+        top_idx = np.argmax(cos_sim_scores)
+        hit_img_path = image_paths[top_idx]
+        print(f"Question: {question}") # Keep for debugging
+        print(f"Most relevant image: {hit_img_path}") # Keep for debugging
+
+        return hit_img_path
+    except Exception as e:
+        st.error(f"Error during search: {e}")
+        return None
+
+# Answer function
+def answer(question: str, img_path: str, gemini_client) -> str:
+    """Answers the question based on the provided image using Gemini."""
+    if not gemini_client or not img_path or not os.path.exists(img_path):
+        missing = []
+        if not gemini_client: missing.append("Gemini client")
+        if not img_path: missing.append("Image path")
+        elif not os.path.exists(img_path): missing.append(f"Image file at {img_path}")
+        return f"Answering prerequisites not met ({', '.join(missing)} missing or invalid)."
+    try:
+        img = PIL.Image.open(img_path)
+        prompt = [f"""Answer the question based on the following image. Be as elaborate as possible giving extra relevant information.
+Don't use markdown formatting in the response.
+Please provide enough context for your answer.
+
+Question: {question}""", img]
+
+        response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        llm_answer = response.text
+        print("LLM Answer:", llm_answer) # Keep for debugging
+        return llm_answer
+    except Exception as e:
+        st.error(f"Error during answer generation: {e}")
