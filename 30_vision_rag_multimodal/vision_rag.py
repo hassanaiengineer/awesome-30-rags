@@ -302,3 +302,79 @@ Question: {question}""", img]
         return llm_answer
     except Exception as e:
         st.error(f"Error during answer generation: {e}")
+        return f"Failed to generate answer: {e}"
+
+# --- Main UI Setup ---
+st.subheader("📊 Sample Images")
+st.info("Sample image downloads are disabled in this repo. Upload your own images/PDFs below.")
+
+st.markdown("--- ")
+# --- File Uploader (Main UI) ---
+st.subheader("📤 Upload Your Images")
+st.info("Or, upload your own images or PDFs. The RAG process will search across all loaded content.")
+
+# File uploader
+uploaded_files = st.file_uploader("Upload images (PNG, JPG, JPEG) or PDFs", 
+                                type=["png", "jpg", "jpeg", "pdf"], 
+                                accept_multiple_files=True, key="image_uploader",
+                                label_visibility="collapsed")
+
+# Process uploaded images
+if uploaded_files and co:
+    st.write(f"Processing {len(uploaded_files)} uploaded images...")
+    progress_bar = st.progress(0)
+    
+    # Create a temporary directory for uploaded images
+    upload_folder = "uploaded_img"
+    os.makedirs(upload_folder, exist_ok=True)
+    
+    newly_uploaded_paths = []
+    newly_uploaded_embeddings = []
+
+    for i, uploaded_file in enumerate(uploaded_files):
+        # Check if already processed this session (simple name check)
+        img_path = os.path.join(upload_folder, uploaded_file.name)
+        if img_path not in st.session_state.image_paths:
+            try:
+                # Check file type
+                file_type = uploaded_file.type
+                if file_type == "application/pdf":
+                    # Process PDF - returns list of paths and list of embeddings
+                    pdf_page_paths, pdf_page_embeddings = process_pdf_file(uploaded_file, cohere_client=co)
+                    if pdf_page_paths and pdf_page_embeddings:
+                         # Add only paths/embeddings not already in session state
+                         current_paths_set = set(st.session_state.image_paths)
+                         unique_new_paths = [p for p in pdf_page_paths if p not in current_paths_set]
+                         if unique_new_paths:
+                             indices_to_add = [i for i, p in enumerate(pdf_page_paths) if p in unique_new_paths]
+                             newly_uploaded_paths.extend(unique_new_paths)
+                             newly_uploaded_embeddings.extend([pdf_page_embeddings[idx] for idx in indices_to_add])
+                elif file_type in ["image/png", "image/jpeg"]:
+                    # Process regular image
+                    # Save the uploaded file
+                    with open(img_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    
+                    # Get embedding
+                    base64_img = base64_from_image(img_path)
+                    emb = compute_image_embedding(base64_img, _cohere_client=co)
+                    
+                    if emb is not None:
+                        newly_uploaded_paths.append(img_path)
+                        newly_uploaded_embeddings.append(emb)
+                else:
+                     st.warning(f"Unsupported file type skipped: {uploaded_file.name} ({file_type})")
+
+            except Exception as e:
+                st.error(f"Error processing {uploaded_file.name}: {e}")
+        # Update progress regardless of processing status for user feedback
+        progress_bar.progress((i + 1) / len(uploaded_files))
+
+    # Add newly processed files to session state
+    if newly_uploaded_paths:
+        st.session_state.image_paths.extend(newly_uploaded_paths)
+        if newly_uploaded_embeddings:
+            new_embeddings_array = np.vstack(newly_uploaded_embeddings)
+            if st.session_state.doc_embeddings is None or st.session_state.doc_embeddings.size == 0:
+                st.session_state.doc_embeddings = new_embeddings_array
+            else:
