@@ -148,3 +148,53 @@ For each bug description, you must:
 2. Optionally choose up to TWO secondary candidate pattern ids.
 3. Explain your reasoning in clear bullet points.
 4. Propose a MINIMAL structural fix:
+   - changes to retrieval, indexing, routing, evaluation, tooling, or infra
+   - avoid generic advice like "add more context" or "use a better model"
+
+You are not allowed to invent new pattern ids.
+Always select from the patterns listed below.
+
+Return your answer as structured Markdown with the following sections:
+
+- Primary pattern
+- Secondary candidates (optional)
+- Reasoning
+- Minimal structural fix
+"""
+    pattern_lines = []
+    for p in PATTERNS:
+        line = f"{p['id']}: {p['name']} — {p['summary']}"
+        pattern_lines.append(line)
+
+    patterns_block = "\n".join(pattern_lines)
+    return textwrap.dedent(header).strip() + "\n\nFailure patterns:\n" + patterns_block
+
+
+def make_client_and_model():
+    """Create an OpenAI-compatible client and read model settings."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        api_key = getpass("Enter your OpenAI-compatible API key: ").strip()
+
+    base_url = os.getenv("OPENAI_BASE_URL", "").strip() or "https://api.openai.com/v1"
+    model_name = os.getenv("OPENAI_MODEL", "").strip() or "gpt-4o"
+
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    print(f"\nUsing base URL: {base_url}")
+    print(f"Using model:    {model_name}\n")
+    return client, model_name
+
+
+def choose_bug_description() -> str:
+    """Let the user choose one of the examples or paste their own bug."""
+    print("Choose an example or paste your own bug description:\n")
+    print("  [1] Example 1 — retrieval hallucination (P01 style)")
+    print("  [2] Example 2 — startup ordering / dependency not ready (P10 style)")
+    print("  [3] Example 3 — config or secrets drift (P11 style)")
+    print("  [p] Paste my own RAG / LLM bug\n")
+
+    choice = input("Your choice: ").strip().lower()
+    print()
+
+    if choice == "1":
+        bug = EXAMPLE_1
