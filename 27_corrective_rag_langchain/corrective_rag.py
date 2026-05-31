@@ -75,3 +75,80 @@ tavily_api_key = st.session_state.tavily_api_key
 anthropic_api_key = st.session_state.anthropic_api_key
 
 # Update embeddings initialization
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-small",
+    api_key=st.session_state.openai_api_key
+)
+
+# Update Qdrant client initialization
+client = QdrantClient(
+    url=st.session_state.qdrant_url,
+    api_key=st.session_state.qdrant_api_key
+)
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def execute_tavily_search(tool, query):
+    return tool.invoke({"query": query})
+
+def web_search(state):
+    """Web search based on the re-phrased question using Tavily API."""
+    print("~-web search-~")
+    state_dict = state["keys"]
+    question = state_dict["question"]
+    documents = state_dict["documents"]
+    
+    # Create progress placeholder
+    progress_placeholder = st.empty()
+    progress_placeholder.info("Initiating web search...")
+    
+    try:
+        # Validate Tavily API key
+        if not st.session_state.tavily_api_key:
+            progress_placeholder.warning("Tavily API key not provided - skipping web search")
+            return {"keys": {"documents": documents, "question": question}}
+        
+        progress_placeholder.info("Configuring search tool...")
+        
+        # Initialize Tavily search tool
+        tool = TavilySearchResults(
+            api_key=st.session_state.tavily_api_key,
+            max_results=3,
+            search_depth="advanced"
+        )
+        
+        # Execute search with retry logic
+        progress_placeholder.info("Executing search query...")
+        try:
+            search_results = execute_tavily_search(tool, question)
+        except Exception as search_error:
+            progress_placeholder.error(f"Search failed after retries: {str(search_error)}")
+            return {"keys": {"documents": documents, "question": question}}
+        
+        if not search_results:
+            progress_placeholder.warning("No search results found")
+            return {"keys": {"documents": documents, "question": question}}
+        
+        # Process results
+        progress_placeholder.info("Processing search results...")
+        web_results = []
+        for result in search_results:
+            # Extract and format relevant information
+            content = (
+                f"Title: {result.get('title', 'No title')}\n"
+                f"Content: {result.get('content', 'No content')}\n"
+            )
+            web_results.append(content)
+        
+        # Create document from results
+        web_document = Document(
+            page_content="\n\n".join(web_results),
+            metadata={
+                "source": "tavily_search",
+                "query": question,
+                "result_count": len(web_results)
+            }
+        )
+        documents.append(web_document)
+        
+        progress_placeholder.success(f"Successfully added {len(web_results)} search results")
+        
