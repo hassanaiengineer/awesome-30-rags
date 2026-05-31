@@ -187,3 +187,66 @@ def rewrite(state):
         dict: The updated state with re-phrased question
     """
 
+    print("---TRANSFORM QUERY---")
+    messages = state["messages"]
+    question = messages[0].content
+
+    msg = [
+        HumanMessage(
+            content=f""" \n 
+                    Look at the input and try to reason about the underlying semantic intent / meaning. \n 
+                    Here is the initial question:
+                    \n ------- \n
+                    {question} 
+                    \n ------- \n
+                    Formulate an improved question: """,
+        )
+    ]
+
+    # Grader
+    model = ChatGoogleGenerativeAI(api_key=st.session_state.gemini_api_key, temperature=0, model="gemini-2.0-flash", streaming=True)
+    response = model.invoke(msg)
+    return {"messages": [response]}
+
+## generate node
+def generate(state):
+    """
+    Generate answer
+
+    Args:
+        state (messages): The current state
+
+    Returns:
+         dict: The updated state with re-phrased question
+    """
+    print("---GENERATE---")
+    messages = state["messages"]
+    question = messages[0].content
+    last_message = messages[-1]
+
+    docs = last_message.content
+
+    # Initialize a Chat Prompt Template
+    prompt_template = hub.pull("rlm/rag-prompt")
+
+    # Initialize a Generator (i.e. Chat Model)
+    chat_model = ChatGoogleGenerativeAI(api_key=st.session_state.gemini_api_key, model="gemini-2.0-flash", temperature=0, streaming=True)
+
+    # Initialize a Output Parser
+    output_parser = StrOutputParser()
+    
+    # RAG Chain
+    rag_chain = prompt_template | chat_model | output_parser
+
+    response = rag_chain.invoke({"context": docs, "question": question})
+    
+    return {"messages": [response]}
+
+# graph function
+def get_graph(retriever_tool):
+    tools = [retriever_tool]  # Create tools list here
+    
+    # Define a new graph
+    workflow = StateGraph(AgentState)
+
+    # Use partial to pass tools to the agent function
