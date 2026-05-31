@@ -124,3 +124,66 @@ def grade_documents(state) -> Literal["generate", "rewrite"]:
     # Prompt
     prompt = PromptTemplate(
         template="""You are a grader assessing relevance of a retrieved document to a user question. \n 
+        Here is the retrieved document: \n\n {context} \n\n
+        Here is the user question: {question} \n
+        If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. \n
+        Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question.""",
+        input_variables=["context", "question"],
+    )
+
+    # Chain
+    chain = prompt | llm_with_tool
+
+    messages = state["messages"]
+    last_message = messages[-1]
+
+    question = messages[0].content
+    docs = last_message.content
+
+    scored_result = chain.invoke({"question": question, "context": docs})
+
+    score = scored_result.binary_score
+
+    if score == "yes":
+        print("---DECISION: DOCS RELEVANT---")
+        return "generate"
+
+    else:
+        print("---DECISION: DOCS NOT RELEVANT---")
+        print(score)
+        return "rewrite"
+    
+# Nodes
+## agent node
+def agent(state, tools):
+    """
+    Invokes the agent model to generate a response based on the current state. Given
+    the question, it will decide to retrieve using the retriever tool, or simply end.
+
+    Args:
+        state (messages): The current state
+
+    Returns:
+        dict: The updated state with the agent response appended to messages
+    """
+    print("---CALL AGENT---")
+    messages = state["messages"]
+    model = ChatGoogleGenerativeAI(api_key=st.session_state.gemini_api_key, temperature=0, streaming=True, model="gemini-2.0-flash")
+    model = model.bind_tools(tools)
+    response = model.invoke(messages)
+    
+    # We return a list, because this will get added to the existing list
+    return {"messages": [response]}
+
+## rewrite node
+def rewrite(state):
+    """
+    Transform the query to produce a better question.
+
+    Args:
+        state (messages): The current state
+
+    Returns:
+        dict: The updated state with re-phrased question
+    """
+
