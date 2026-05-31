@@ -48,3 +48,28 @@ def setup_assistant(api_key: str) -> Agent:
             ),
             num_documents=3,  
         ),
+        tools=[DuckDuckGoTools()],  # Additional tool for web search via DuckDuckGo
+        instructions=[
+            "Search your knowledge base first.",  
+            "If not found, search the internet.",  
+            "Provide clear and concise answers.",  
+        ],
+        show_tool_calls=True,  
+        search_knowledge=True,  
+        markdown=True,  
+        debug_mode=True,  
+    )
+
+# Function to add a PDF document to the knowledge base
+def add_document(agent: Agent, file: BytesIO):
+    """Add a PDF document to the agent's knowledge base.
+
+    This function reads a PDF document from a file-like object and adds its contents to the specified agent's knowledge base. If the document is successfully read, the contents are loaded into the knowledge base with the option to upsert existing data.
+
+    Args:
+        agent (Agent): The agent whose knowledge base will be updated.
+        file (BytesIO): A file-like object containing the PDF document to be added.
+
+    Returns:
+        None: The function does not return a value but provides feedback on whether the operation was successful."""
+    reader = PDFReader()
