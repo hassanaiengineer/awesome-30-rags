@@ -383,3 +383,80 @@ def transform_query(state):
 def decide_to_generate(state):
     print("~-decide to generate-~")
     state_dict = state["keys"]
+    search = state_dict["run_web_search"]
+
+    if search == "Yes":
+     
+        print("~-decision: transform query and run web search-~")
+        return "transform_query"
+    else:
+        print("~-decision: generate-~")
+        return "generate"
+    
+def format_document(doc: Document) -> str:
+    return f"""
+    Source: {doc.metadata.get('source', 'Unknown')}
+    Title: {doc.metadata.get('title', 'No title')}
+    Content: {doc.page_content[:200]}...
+    """
+
+def format_state(state: dict) -> str:
+    formatted = {}
+    
+    for key, value in state.items():
+        if key == "documents":
+            formatted[key] = [format_document(doc) for doc in value]
+        else:
+            formatted[key] = value
+            
+    return formatted
+
+
+workflow = StateGraph(GraphState)
+
+# Define the nodes by langgraph
+workflow.add_node("retrieve", retrieve) 
+workflow.add_node("grade_documents", grade_documents)  
+workflow.add_node("generate", generate) 
+workflow.add_node("transform_query", transform_query)  
+workflow.add_node("web_search", web_search) 
+
+# Build graph
+workflow.set_entry_point("retrieve")
+workflow.add_edge("retrieve", "grade_documents")
+workflow.add_conditional_edges(
+    "grade_documents",
+    decide_to_generate,
+    {
+        "transform_query": "transform_query",
+        "generate": "generate",
+    },
+)
+workflow.add_edge("transform_query", "web_search")
+workflow.add_edge("web_search", "generate")
+workflow.add_edge("generate", END)
+
+app = workflow.compile()
+
+st.title("🔄 Corrective RAG Agent")
+
+st.text("A possible query: What are the experiment results and ablation studies in this research paper?")
+
+# User input
+user_question = st.text_input("Please enter your question:")
+
+if user_question:
+    inputs = {
+        "keys": {
+            "question": user_question,
+        }
+    }
+
+    for output in app.stream(inputs):
+        for key, value in output.items():
+            with st.expander(f"Step '{key}':"):
+                st.text(pprint.pformat(format_state(value["keys"]), indent=2, width=80))
+
+    final_generation = value['keys'].get('generation', 'No final generation produced.')
+    st.subheader("Final Generation:")
+    st.write(final_generation)
