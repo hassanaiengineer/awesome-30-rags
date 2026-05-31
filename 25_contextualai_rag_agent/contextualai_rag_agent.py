@@ -108,3 +108,58 @@ def upload_documents(client, datastore_id: str, files: List[bytes], filenames: L
                 tmp.write(content)
                 tmp_path = tmp.name
             with open(tmp_path, "rb") as f:
+                if metadata:
+                    result = client.datastores.documents.ingest(datastore_id, file=f, metadata=metadata)
+                else:
+                    result = client.datastores.documents.ingest(datastore_id, file=f)
+                doc_ids.append(getattr(result, "id", ""))
+        except Exception as e:
+            st.error(f"Failed to upload {fname}: {e}")
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+    return doc_ids
+
+
+def wait_until_documents_ready(api_key: str, datastore_id: str, base_url: str, max_checks: int = 30, interval_sec: float = 5.0) -> None:
+    url = f"{base_url.rstrip('/')}/datastores/{datastore_id}/documents"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    for _ in range(max_checks):
+        try:
+            resp = requests.get(url, headers=headers, timeout=30)
+            if resp.status_code == 200:
+                docs = resp.json().get("documents", [])
+                if not any(d.get("status") in ("processing", "pending") for d in docs):
+                    return
+            time.sleep(interval_sec)
+        except Exception:
+            time.sleep(interval_sec)
+
+
+def create_agent(client, name: str, description: str, datastore_id: str) -> Optional[str]:
+    try:
+        agent = client.agents.create(name=name, description=description, datastore_ids=[datastore_id])
+        return getattr(agent, "id", None)
+    except Exception as e:
+        st.error(f"Failed to create agent: {e}")
+        return None
+
+
+def query_agent(client, agent_id: str, query: str) -> Tuple[str, Any]:
+    try:
+        resp = client.agents.query.create(agent_id=agent_id, messages=[{"role": "user", "content": query}])
+        if hasattr(resp, "content"):
+            return resp.content, resp
+        if hasattr(resp, "message") and hasattr(resp.message, "content"):
+            return resp.message.content, resp
+        if hasattr(resp, "messages") and resp.messages:
+            last_msg = resp.messages[-1]
+            return getattr(last_msg, "content", str(last_msg)), resp
+        return str(resp), resp
+    except Exception as e:
+        return f"Error querying agent: {e}", None
+
+
