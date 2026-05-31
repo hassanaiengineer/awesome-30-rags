@@ -53,3 +53,58 @@ def sidebar_api_form() -> bool:
 
         with st.form("contextual_api_form"):
             api_key = st.text_input("Contextual AI API Key", type="password")
+            base_url = st.text_input(
+                "Base URL",
+                value=st.session_state.base_url,
+                help="Include /v1 (e.g., https://api.contextual.ai/v1)",
+            )
+            existing_agent_id = st.text_input("Existing Agent ID (optional)")
+            existing_datastore_id = st.text_input("Existing Datastore ID (optional)")
+
+            if st.form_submit_button("Save & Verify"):
+                try:
+                    client = ContextualAI(api_key=api_key, base_url=base_url)
+                    _ = client.agents.list()
+
+                    st.session_state.contextual_api_key = api_key
+                    st.session_state.base_url = base_url
+                    st.session_state.agent_id = existing_agent_id
+                    st.session_state.datastore_id = existing_datastore_id
+                    st.session_state.api_key_submitted = True
+
+                    st.success("Credentials verified!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Credential verification failed: {str(e)}")
+        return False
+
+
+def ensure_client():
+    if not st.session_state.get("contextual_api_key"):
+        raise ValueError("Contextual AI API key not provided")
+    return ContextualAI(api_key=st.session_state.contextual_api_key, base_url=st.session_state.base_url)
+
+
+def create_datastore(client, name: str) -> Optional[str]:
+    try:
+        ds = client.datastores.create(name=name)
+        return getattr(ds, "id", None)
+    except Exception as e:
+        st.error(f"Failed to create datastore: {e}")
+        return None
+
+
+ALLOWED_EXTS = {".pdf", ".html", ".htm", ".mhtml", ".doc", ".docx", ".ppt", ".pptx"}
+
+def upload_documents(client, datastore_id: str, files: List[bytes], filenames: List[str], metadata: Optional[dict]) -> List[str]:
+    doc_ids: List[str] = []
+    for content, fname in zip(files, filenames):
+        try:
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in ALLOWED_EXTS:
+                st.error(f"Unsupported file extension for {fname}. Allowed: {sorted(ALLOWED_EXTS)}")
+                continue
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            with open(tmp_path, "rb") as f:
