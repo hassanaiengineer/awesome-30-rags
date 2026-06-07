@@ -1,15 +1,24 @@
-# 30 Days of RAG (Tutorial Series)
+# 30 Days of RAG (Tutorial Series) — 🏆 COMPLETE 🏆
 
-**Date:** May 1, 2026  
-**Maintainer:** Hassan Khan 
+**Author:** Hassan Khan  
 **Email:** `hassanaiengineer@gmail.com`  
-**LinkedIn:** https://www.linkedin.com/in/hassan-khan-4961b722b/
+**LinkedIn:** [Hassan Khan on LinkedIn](https://www.linkedin.com/in/hassan-khan-4961b722b/)  
+**Series Status:** Complete (30/30 Days Shipped) 🎉
 
-This repository is a **hands-on 30-day RAG series**: small projects (FastAPI + Streamlit) covering retrieval patterns, routing, hybrid search, knowledge graphs, multimodal (vision) RAG, and debugging/failure diagnostics.
+This repository is a **comprehensive, hands-on 30-day RAG series**. It contains 30 independent, self-contained projects (FastAPI APIs + Streamlit dashboards) covering retrieval patterns, agentic routing, hybrid search, knowledge graphs, local LLM deployment, multimodal (vision) RAG, and production diagnostics.
 
 Motivation and goals: see `MOTIVATION.md`.
 
 ![30 Days of RAG Series](./30_rags_series.png)
+
+## 🔑 Key Architecture & Patterns Covered
+
+Across these 30 days, we built and explored several production-level architectures:
+1. **API foundations (Days 01–08):** Building minimal RAG, multi-query expansion, tool augmented loops, corrective RAG, and GraphRAG using FastAPI.
+2. **Interactive Frontends (Days 09–16):** Developing Streamlit-based PDF and webpage chat dashboards, integrating Google Gemini, OpenAI, LanceDB, and Cohere.
+3. **Privacy-First Local RAG (Days 17–20):** Running local embedding and reasoning LLMs (DeepSeek, Qwen, Gemma) using Ollama, SymPy, and Qdrant.
+4. **Advanced Orchestration (Days 21–27):** Dynamic multi-tenant collection routing, multilingual search, Neo4j knowledge graphs, and complex state machines with LangGraph.
+5. **Expert Systems & Vision (Days 28–30):** Autonomous research loops, diagnostic CLI testing for the 12 RAG failure modes, and multimodal document vision engines.
 
 ## Tech Stack (Across the Series)
 
